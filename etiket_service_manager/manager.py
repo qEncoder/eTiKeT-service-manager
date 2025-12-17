@@ -1,6 +1,7 @@
 """Service manager - cross-platform service management."""
 
 import platform
+import shutil
 from pathlib import Path
 from typing import Optional, List
 
@@ -63,10 +64,17 @@ class ServiceManager:
             ServiceAlreadyInstalledError: If service is already installed and raise_if_already_installed is True.
             ServiceOperationError: If installation fails.
         """
-        # Validate that first argument (executable) exists if it's an absolute path
-        executable_path = Path(program_arguments[0])
-        if executable_path.is_absolute() and not executable_path.exists():
-            raise FileNotFoundError(f'Executable does not exist: {executable_path}')
+
+        executable = program_arguments[0]
+        executable_path = Path(executable)
+        
+        if executable_path.is_absolute():
+            if not executable_path.exists():
+                raise FileNotFoundError(f'Executable does not exist: {executable_path}')
+        else:
+            resolved = shutil.which(executable)
+            if resolved is None and not executable_path.exists():
+                raise FileNotFoundError(f'Executable not found: {executable}')
         
         self._backend.install(program_arguments, version, raise_if_already_installed)
 

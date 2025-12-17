@@ -33,7 +33,7 @@ def main():
             sys.executable,
             "-m",
             "PyInstaller",
-            "--onefile",
+            "--onedir",
             "--clean",
             "--noconfirm",
             "--name", exe_name.replace(".exe", ""),
