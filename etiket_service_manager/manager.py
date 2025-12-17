@@ -13,7 +13,6 @@ from etiket_service_manager.backends.linux import LinuxServiceManager
 from etiket_service_manager.backends.macos import MacOSServiceManager
 from etiket_service_manager.backends.windows import WindowsServiceManager
 
-
 class ServiceManager:
     """
     Cross-platform service manager.

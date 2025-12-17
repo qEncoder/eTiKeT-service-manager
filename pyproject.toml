@@ -4,20 +4,58 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "etiket_service_manager"
-version = "0.1.0"
 description = "Cross-platform service management library for Linux, macOS, and Windows"
 authors = [{name = "QHarbor team"}]
-requires-python = ">=3.9"
-
+license = {file = "LICENCE"}
+requires-python = ">=3.10"
+dynamic = ["version"]
+keywords = [
+    "service-management",
+    "systemd",
+    "launchd",
+    "scheduled-tasks",
+    "daemon",
+    "background-process",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "packaging>=21.0",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
+test = [
+    "pytest>=7.0.0",
+    "httpx>=0.24.0",
 ]
+dev = [
+    "pyinstaller>=6.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+]
+
+[project.urls]
+Homepage = "https://qharbor.nl"
+Documentation = "https://docs.qharbor.nl"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["etiket_service_manager*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "etiket_service_manager.__version__"}

@@ -1,10 +1,7 @@
 """macOS launchd service manager backend."""
 
-import os
-import re
-import shutil
-import subprocess
-import time
+import os, plistlib, re, shutil, subprocess, time
+
 from pathlib import Path
 from typing import Optional, Callable, List
 
@@ -56,39 +53,24 @@ class MacOSServiceManager(ServiceManagerBackend):
             self.logger.info('Creating directories: %s and %s', self.app_dir, log_dir)
             os.makedirs(log_dir, exist_ok=True)
 
-            # Build ProgramArguments XML
-            args_xml_lines = ['    <key>ProgramArguments</key>', '    <array>']
-            for arg in program_arguments:
-                args_xml_lines.append(f'        <string>{arg}</string>')
-            args_xml_lines.append('    </array>')
-            program_arguments_xml = '\n'.join(args_xml_lines)
+            # Create plist content
+            plist_content = {
+                'KeepAlive': True,
+                'Label': self.bundle_identifier,
+                'WorkingDirectory': str(self.app_dir),
+                'ProgramArguments': program_arguments,
+                'RunAtLoad': True,
+                'StandardErrorPath': str(log_dir / "err.log"),
+                'StandardOutPath': str(log_dir / "out.log"),
+                'ThrottleInterval': 60,
+                'Version': str(version)
+            }
 
             # Create plist file
             self.logger.info('Creating plist file at %s', self.plist_path)
-            plist_content = f'''<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>KeepAlive</key>
-    <true/>
-    <key>Label</key>
-    <string>{self.bundle_identifier}</string>
-    <key>WorkingDirectory</key>
-    <string>{self.app_dir}</string>
-{program_arguments_xml}
-    <key>RunAtLoad</key>
-    <true/>
-    <key>StandardErrorPath</key>
-    <string>{log_dir / "err.log"}</string>
-    <key>StandardOutPath</key>
-    <string>{log_dir / "out.log"}</string>
-    <key>ThrottleInterval</key>
-    <integer>60</integer>
-    <key>Version</key>
-    <string>{version}</string>
-</dict>
-</plist>'''
-            self.plist_path.write_text(plist_content)
+            with open(self.plist_path, 'wb') as f:
+                plistlib.dump(plist_content, f)
+
             try:
                 os.chmod(self.plist_path, 0o644)
             except OSError as e:
@@ -206,13 +188,22 @@ class MacOSServiceManager(ServiceManagerBackend):
             return
 
         self.logger.info('Kickstarting service with launchctl')
-        result = subprocess.run(
-            ['launchctl', 'bootstrap', f'gui/{self.user_id}', str(self.plist_path)],
-            capture_output=True, text=True, check=False
-        )
-        if result.returncode != 0:
-            self.logger.error('Failed to start the service: %s', result.stderr)
-            raise ServiceOperationError(ServiceOperation.START, f'Failed to start the service: {result.stderr}')
+        
+        # Try to start, retry once if it fails (e.g. if port is not released yet)
+        for i in range(2):
+            result = subprocess.run(
+                ['launchctl', 'bootstrap', f'gui/{self.user_id}', str(self.plist_path)],
+                capture_output=True, text=True, check=False
+            )
+            if result.returncode == 0:
+                break
+                
+            if i == 0:
+                self.logger.warning('Failed to start service, retrying in 1s: %s', result.stderr)
+                time.sleep(1)
+            else:
+                self.logger.error('Failed to start the service: %s', result.stderr)
+                raise ServiceOperationError(ServiceOperation.START, f'Failed to start the service: {result.stderr}')
 
         self._wait_for_service_status(lambda s: s.running_status == RunningStatus.RUNNING)
         self.logger.info('Service %s successfully started', self.service_name)
@@ -307,15 +298,16 @@ class MacOSServiceManager(ServiceManagerBackend):
                 self.logger.warning('Plist file not found, service may not be installed')
                 return None
 
-            content = self.plist_path.read_text()
-            match = re.search(r'<key>Version</key>\s*<string>(\d+\.\d+\.\d+)</string>', content)
+            with open(self.plist_path, 'rb') as f:
+                plist_content = plistlib.load(f)
             
-            if match:
-                self.logger.debug('Version found in plist file: %s', match.group(1))
-                return Version(match.group(1))
+            version_str = plist_content.get('Version')
+            if version_str:
+                self.logger.debug('Version found in plist file: %s', version_str)
+                return Version(version_str)
             else:
-                self.logger.error('Failed to read version from plist file: %s', content)
-                raise ServiceOperationError(ServiceOperation.GET_VERSION, f'Failed to read version from plist file: {content}')
+                self.logger.error('Failed to read version from plist file: Version key missing')
+                raise ServiceOperationError(ServiceOperation.GET_VERSION, 'Failed to read version from plist file: Version key missing')
 
         except Exception as e:
             if isinstance(e, FileNotFoundError):
