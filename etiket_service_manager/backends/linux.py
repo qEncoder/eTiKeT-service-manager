@@ -2,6 +2,7 @@
 
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import time
@@ -11,6 +12,7 @@ from typing import Optional, Callable, List
 from packaging.version import Version
 
 from etiket_service_manager.backends.base import ServiceManagerBackend
+from etiket_service_manager.backends.linux_templates import SYSTEMD_SERVICE_TEMPLATE
 from etiket_service_manager.status import (
     ServiceStatus, InstallationStatus, EnablementStatus, RunningStatus
 )
@@ -57,40 +59,22 @@ class LinuxServiceManager(ServiceManagerBackend):
             os.makedirs(log_dir, exist_ok=True)
             os.makedirs(self.systemd_user_dir, exist_ok=True)
 
-            # Build the ExecStart command from program_arguments
-            exec_start_parts = []
-            for arg in program_arguments:
-                if ' ' in arg or any(c in arg for c in ['$', '"', "'"]):
-                    exec_start_parts.append(f'"{arg}"')
-                else:
-                    exec_start_parts.append(arg)
-            exec_start = ' '.join(exec_start_parts)
+            exec_start = ' '.join(shlex.quote(arg) for arg in program_arguments)
 
-            # Create systemd service file
             self.logger.info('Creating systemd service file at %s', self.service_file_path)
-            service_file_content = f'''[Unit]
-Description={self.service_name} service
-After=network.target
-
-[Service]
-Type=simple
-ExecStart={exec_start}
-WorkingDirectory={self.app_dir}
-Restart=always
-RestartSec=5
-StandardOutput=append:{log_dir / "out.log"}
-StandardError=append:{log_dir / "err.log"}
-Environment="VERSION={version}"
-
-[Install]
-WantedBy=default.target
-'''
+            service_file_content = SYSTEMD_SERVICE_TEMPLATE.format(
+                service_name=self.service_name,
+                exec_start=exec_start,
+                working_directory=self.app_dir,
+                stdout_log=log_dir / 'out.log',
+                stderr_log=log_dir / 'err.log',
+                version=str(version)
+            )
             self.service_file_path.write_text(service_file_content)
 
-            # Reload systemd
             reload_result = subprocess.run(
                 ['systemctl', '--user', 'daemon-reload'],
-                capture_output=True, text=True, check=False
+                capture_output=True, text=True, check=False, timeout=30
             )
             if reload_result.returncode != 0:
                 self.logger.error('Failed to reload systemd: %s', reload_result.stderr)
@@ -135,7 +119,7 @@ WantedBy=default.target
             self.logger.info('Removing service file: %s', self.service_file_path)
             self.service_file_path.unlink()
 
-        subprocess.run(['systemctl', '--user', 'daemon-reload'], check=False)
+        subprocess.run(['systemctl', '--user', 'daemon-reload'], check=False, timeout=30)
 
         if self.app_dir.exists():
             self.logger.info('Removing service directory: %s', self.app_dir)
@@ -160,7 +144,7 @@ WantedBy=default.target
 
         result = subprocess.run(
             ['systemctl', '--user', 'enable', f'{self.service_name}.service'],
-            capture_output=True, text=True, check=False
+            capture_output=True, text=True, check=False, timeout=30
         )
         if result.returncode != 0:
             self.logger.error('Failed to enable service: %s', result.stderr)
@@ -189,7 +173,7 @@ WantedBy=default.target
 
         result = subprocess.run(
             ['systemctl', '--user', 'disable', f'{self.service_name}.service'],
-            capture_output=True, text=True, check=False
+            capture_output=True, text=True, check=False, timeout=30
         )
         if result.returncode != 0:
             self.logger.error('Failed to disable service: %s', result.stderr)
@@ -218,13 +202,14 @@ WantedBy=default.target
 
         result = subprocess.run(
             ['systemctl', '--user', 'start', f'{self.service_name}.service'],
-            capture_output=True, text=True, check=False
+            capture_output=True, text=True, check=False, timeout=30
         )
         if result.returncode != 0:
             self.logger.error('Failed to start service: %s', result.stderr)
             raise ServiceOperationError(ServiceOperation.START, f'Failed to start service: {result.stderr}')
 
-        self._wait_for_service_status(lambda s: s.running_status == RunningStatus.RUNNING)
+        if not self._wait_for_service_status(lambda s: s.running_status == RunningStatus.RUNNING):
+            raise ServiceOperationError(ServiceOperation.START, 'Service did not start within timeout')
         self.logger.info('Service %s successfully started', self.service_name)
 
     def stop(self, raise_if_already_stopped: bool = False) -> None:
@@ -244,13 +229,14 @@ WantedBy=default.target
 
         result = subprocess.run(
             ['systemctl', '--user', 'stop', f'{self.service_name}.service'],
-            capture_output=True, text=True, check=False
+            capture_output=True, text=True, check=False, timeout=30
         )
         if result.returncode != 0:
             self.logger.error('Failed to stop service: %s', result.stderr)
             raise ServiceOperationError(ServiceOperation.STOP, f'Failed to stop service: {result.stderr}')
 
-        self._wait_for_service_status(lambda s: s.running_status == RunningStatus.NOT_RUNNING)
+        if not self._wait_for_service_status(lambda s: s.running_status == RunningStatus.NOT_RUNNING):
+            raise ServiceOperationError(ServiceOperation.STOP, 'Service did not stop within timeout')
         self.logger.info('Service %s successfully stopped', self.service_name)
 
     @property
@@ -271,7 +257,7 @@ WantedBy=default.target
         # Check enabled
         result_enabled = subprocess.run(
             ['systemctl', '--user', 'is-enabled', f'{self.service_name}.service'],
-            capture_output=True, text=True, check=False
+            capture_output=True, text=True, check=False, timeout=30
         )
         if result_enabled.returncode == 0:
             service_status.enablement_status = EnablementStatus.ENABLED
@@ -279,7 +265,7 @@ WantedBy=default.target
         # Check active (running)
         result_active = subprocess.run(
             ['systemctl', '--user', 'is-active', f'{self.service_name}.service'],
-            capture_output=True, text=True, check=False
+            capture_output=True, text=True, check=False, timeout=30
         )
         if result_active.returncode == 0:
             service_status.running_status = RunningStatus.RUNNING
@@ -297,7 +283,7 @@ WantedBy=default.target
                 return None
             
             content = self.service_file_path.read_text()
-            match = re.search(r'Environment="VERSION=([0-9.]+)"', content)
+            match = re.search(r'Environment="VERSION=([^"]+)"', content)
             if match:
                 version_str = match.group(1)
                 self.logger.debug('Found version: %s', version_str)
