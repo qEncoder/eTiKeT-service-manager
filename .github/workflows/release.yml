@@ -40,6 +40,7 @@ jobs:
           pip install mypy setuptools
 
       - name: Generate Stubs
+        shell: bash
         run: |
           # Variable for easier script access
           PKG_NAME="etiket_service_manager"
