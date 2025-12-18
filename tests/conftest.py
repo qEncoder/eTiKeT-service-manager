@@ -34,7 +34,7 @@ def get_test_service_path() -> Path:
     dist_dir = tests_dir / "test_service" / "dist"
     
     if platform.system() == "Windows":
-        exe_path = dist_dir / "test_service.exe"
+        exe_path = dist_dir / "test_service" / "test_service.exe"
     else:
         exe_path = dist_dir / "test_service" / "test_service"
     
