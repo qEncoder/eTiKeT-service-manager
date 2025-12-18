@@ -52,11 +52,8 @@ class LinuxServiceManager(ServiceManagerBackend):
             return
 
         try:
-            log_dir = self.app_dir / 'logs'
-
-            self.logger.info('Creating directories: %s and %s', self.app_dir, log_dir)
+            self.logger.info('Creating directories: %s', self.app_dir)
             os.makedirs(self.app_dir, exist_ok=True)
-            os.makedirs(log_dir, exist_ok=True)
             os.makedirs(self.systemd_user_dir, exist_ok=True)
 
             exec_start = ' '.join(shlex.quote(arg) for arg in program_arguments)
@@ -66,8 +63,6 @@ class LinuxServiceManager(ServiceManagerBackend):
                 service_name=self.service_name,
                 exec_start=exec_start,
                 working_directory=self.app_dir,
-                stdout_log=log_dir / 'out.log',
-                stderr_log=log_dir / 'err.log',
                 version=str(version)
             )
             self.service_file_path.write_text(service_file_content)

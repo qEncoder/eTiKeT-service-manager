@@ -151,11 +151,21 @@ The service definition (plist) includes:
 
 Service in Linux are implemented using **systemd** user services. This is a robust system that works very well for user-level background processes.
 
-### Folders
-- The configuration file (`{service_name}.service`) is placed in `~/.config/systemd/user/`.
-- Logs are written to `{app_dir}/logs/` (`out.log` and `err.log`).
+### Locations
+- **Configuration**: The systemd user unit file (`{service_name}.service`) is created in `~/.config/systemd/user/`.
+- **Logs**: Managed by systemd. View logs using:
+  ```bash
+  journalctl --user -u {service_name}
+  ```
+  - Use `-f` to follow logs in real-time.
+  - Use `-e` to jump to the end.
+- **Application Binary**: The application executable should be in a stable, user-accessible location.
+  - Recommended: `~/.local/bin/` for standalone binaries.
+  - Note: Self-contained application directories often reside in `~/.local/share/`.
+  - **Important**: Always provide the **absolute path** to the executable when installing the service.
 
 ### Behavior
-- Uses `systemctl --user` commands.
-- Services are defined as `Type=simple`.
-- `Restart=always` with a 5-second delay to ensure reliability.
+- Uses `systemctl --user` commands to manage the service.
+- defined as `Type=simple`.
+- Configured with `Restart=always` and a 5-second delay to ensure reliability.
+
