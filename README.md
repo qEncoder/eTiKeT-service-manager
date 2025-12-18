@@ -131,12 +131,20 @@ The scheduled task:
 - The service name is used as the Task Name.
 - Tasks are created with "LeastPrivilege" run level, so no UAC prompt is needed.
 
+### Logging
+- **Behavior**: Unlike Linux/macOS, Windows Task Scheduler does **not** capture or redirect Standard Output (`stdout`) or Error (`stderr`). Any output printed to the console is lost.
+- **Requirement**: Your application **must** internally handle logging to files.
+  - Do not rely on `print()`.
+  - Use a logging library (e.g., Python's `logging` module) to write directly to a file.
+- **Suggested Location**: `{app_dir}/logs/` to match other platforms.
+
 ## macOS Services
 
 This document outlines the process for creating and managing macOS services using `launchctl`. These services run in the GUI session of the logged-in user (LaunchAgents).
 
 ### Installation Locations
 - **Service configuration file**: `~/Library/LaunchAgents/com.qharbor.{service_name}.plist`
+- **Application Directory**: `~/Applications/{company}/{app_name}` (Recommended for user-specific apps) or `/Applications/{app_name}`.
 - **Logs**: `{app_dir}/{service_name}_logs/`
 
 > [!IMPORTANT]
