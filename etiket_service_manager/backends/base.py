@@ -9,6 +9,11 @@ from packaging.version import Version
 
 from etiket_service_manager.status import ServiceStatus
 
+# Shared timeout constants for all backends
+DEFAULT_STATUS_WAIT_TIMEOUT_SECONDS = 10
+DEFAULT_POLL_INTERVAL_MS = 300
+DEFAULT_SUBPROCESS_TIMEOUT_SECONDS = 30
+
 
 class ServiceManagerBackend(ABC):
     """Abstract base class for platform-specific service manager implementations."""

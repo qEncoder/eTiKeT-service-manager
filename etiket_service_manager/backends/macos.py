@@ -7,7 +7,11 @@ from typing import Optional, Callable, List
 
 from packaging.version import Version
 
-from etiket_service_manager.backends.base import ServiceManagerBackend
+from etiket_service_manager.backends.base import (
+    ServiceManagerBackend,
+    DEFAULT_STATUS_WAIT_TIMEOUT_SECONDS,
+    DEFAULT_POLL_INTERVAL_MS,
+)
 from etiket_service_manager.status import (
     ServiceStatus, InstallationStatus, EnablementStatus, RunningStatus
 )
@@ -129,6 +133,10 @@ class MacOSServiceManager(ServiceManagerBackend):
         self.logger.info('Enabling service: %s', self.service_name)
         
         current_status = self.status
+        if current_status.installation_status == InstallationStatus.NOT_INSTALLED:
+            self.logger.warning('Service is not installed')
+            raise ServiceNotInstalledError()
+        
         if current_status.enablement_status == EnablementStatus.ENABLED:
             if raise_if_already_enabled:
                 self.logger.warning('Service is already enabled')
@@ -319,8 +327,8 @@ class MacOSServiceManager(ServiceManagerBackend):
     def _wait_for_service_status(
         self,
         predicate: Callable[[ServiceStatus], bool],
-        timeout_seconds: int = 5,
-        poll_interval_ms: int = 300
+        timeout_seconds: int = DEFAULT_STATUS_WAIT_TIMEOUT_SECONDS,
+        poll_interval_ms: int = DEFAULT_POLL_INTERVAL_MS
     ) -> bool:
         self.logger.info('Waiting for service %s status to change (timeout: %ss)', self.service_name, timeout_seconds)
         start_time = time.time()

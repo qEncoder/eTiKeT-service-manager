@@ -12,7 +12,11 @@ from typing import Optional, Callable, List
 from packaging.version import Version
 import psutil
 
-from etiket_service_manager.backends.base import ServiceManagerBackend
+from etiket_service_manager.backends.base import (
+    ServiceManagerBackend,
+    DEFAULT_STATUS_WAIT_TIMEOUT_SECONDS,
+    DEFAULT_POLL_INTERVAL_MS,
+)
 from etiket_service_manager.backends.windows_templates import (
     VBS_PROC_LAUNCHER_TEMPLATE,
     create_scheduled_task_xml
@@ -275,7 +279,7 @@ class WindowsServiceManager(ServiceManagerBackend):
                 pass
         
         # Final status check
-        if self._wait_for_service_status(lambda s: s.running_status == RunningStatus.NOT_RUNNING, timeout_seconds=2):
+        if self._wait_for_service_status(lambda s: s.running_status == RunningStatus.NOT_RUNNING, timeout_seconds=DEFAULT_STATUS_WAIT_TIMEOUT_SECONDS):
             self.logger.info('Service %s successfully stopped', self.service_name)
             return
         
@@ -380,8 +384,8 @@ class WindowsServiceManager(ServiceManagerBackend):
     def _wait_for_service_status(
         self,
         predicate: Callable[[ServiceStatus], bool],
-        timeout_seconds: int = 10,
-        poll_interval_ms: int = 300
+        timeout_seconds: int = DEFAULT_STATUS_WAIT_TIMEOUT_SECONDS,
+        poll_interval_ms: int = DEFAULT_POLL_INTERVAL_MS
     ) -> bool:
         self.logger.info('Waiting for service %s status to change (timeout: %ss)', self.service_name, timeout_seconds)
         start_time = time.time()

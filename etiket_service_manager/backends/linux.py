@@ -11,7 +11,12 @@ from typing import Optional, Callable, List
 
 from packaging.version import Version
 
-from etiket_service_manager.backends.base import ServiceManagerBackend
+from etiket_service_manager.backends.base import (
+    ServiceManagerBackend,
+    DEFAULT_STATUS_WAIT_TIMEOUT_SECONDS,
+    DEFAULT_POLL_INTERVAL_MS,
+    DEFAULT_SUBPROCESS_TIMEOUT_SECONDS,
+)
 from etiket_service_manager.backends.linux_templates import SYSTEMD_SERVICE_TEMPLATE
 from etiket_service_manager.status import (
     ServiceStatus, InstallationStatus, EnablementStatus, RunningStatus
@@ -69,7 +74,7 @@ class LinuxServiceManager(ServiceManagerBackend):
 
             reload_result = subprocess.run(
                 ['systemctl', '--user', 'daemon-reload'],
-                capture_output=True, text=True, check=False, timeout=30
+                capture_output=True, text=True, check=False, timeout=DEFAULT_SUBPROCESS_TIMEOUT_SECONDS
             )
             if reload_result.returncode != 0:
                 self.logger.error('Failed to reload systemd: %s', reload_result.stderr)
@@ -114,7 +119,7 @@ class LinuxServiceManager(ServiceManagerBackend):
             self.logger.info('Removing service file: %s', self.service_file_path)
             self.service_file_path.unlink()
 
-        subprocess.run(['systemctl', '--user', 'daemon-reload'], check=False, timeout=30)
+        subprocess.run(['systemctl', '--user', 'daemon-reload'], check=False, timeout=DEFAULT_SUBPROCESS_TIMEOUT_SECONDS)
 
         if self.app_dir.exists():
             self.logger.info('Removing service directory: %s', self.app_dir)
@@ -139,7 +144,7 @@ class LinuxServiceManager(ServiceManagerBackend):
 
         result = subprocess.run(
             ['systemctl', '--user', 'enable', f'{self.service_name}.service'],
-            capture_output=True, text=True, check=False, timeout=30
+            capture_output=True, text=True, check=False, timeout=DEFAULT_SUBPROCESS_TIMEOUT_SECONDS
         )
         if result.returncode != 0:
             self.logger.error('Failed to enable service: %s', result.stderr)
@@ -168,7 +173,7 @@ class LinuxServiceManager(ServiceManagerBackend):
 
         result = subprocess.run(
             ['systemctl', '--user', 'disable', f'{self.service_name}.service'],
-            capture_output=True, text=True, check=False, timeout=30
+            capture_output=True, text=True, check=False, timeout=DEFAULT_SUBPROCESS_TIMEOUT_SECONDS
         )
         if result.returncode != 0:
             self.logger.error('Failed to disable service: %s', result.stderr)
@@ -197,7 +202,7 @@ class LinuxServiceManager(ServiceManagerBackend):
 
         result = subprocess.run(
             ['systemctl', '--user', 'start', f'{self.service_name}.service'],
-            capture_output=True, text=True, check=False, timeout=30
+            capture_output=True, text=True, check=False, timeout=DEFAULT_SUBPROCESS_TIMEOUT_SECONDS
         )
         if result.returncode != 0:
             self.logger.error('Failed to start service: %s', result.stderr)
@@ -224,7 +229,7 @@ class LinuxServiceManager(ServiceManagerBackend):
 
         result = subprocess.run(
             ['systemctl', '--user', 'stop', f'{self.service_name}.service'],
-            capture_output=True, text=True, check=False, timeout=30
+            capture_output=True, text=True, check=False, timeout=DEFAULT_SUBPROCESS_TIMEOUT_SECONDS
         )
         if result.returncode != 0:
             self.logger.error('Failed to stop service: %s', result.stderr)
@@ -252,7 +257,7 @@ class LinuxServiceManager(ServiceManagerBackend):
         # Check enabled
         result_enabled = subprocess.run(
             ['systemctl', '--user', 'is-enabled', f'{self.service_name}.service'],
-            capture_output=True, text=True, check=False, timeout=30
+            capture_output=True, text=True, check=False, timeout=DEFAULT_SUBPROCESS_TIMEOUT_SECONDS
         )
         if result_enabled.returncode == 0:
             service_status.enablement_status = EnablementStatus.ENABLED
@@ -260,7 +265,7 @@ class LinuxServiceManager(ServiceManagerBackend):
         # Check active (running)
         result_active = subprocess.run(
             ['systemctl', '--user', 'is-active', f'{self.service_name}.service'],
-            capture_output=True, text=True, check=False, timeout=30
+            capture_output=True, text=True, check=False, timeout=DEFAULT_SUBPROCESS_TIMEOUT_SECONDS
         )
         if result_active.returncode == 0:
             service_status.running_status = RunningStatus.RUNNING
@@ -294,8 +299,8 @@ class LinuxServiceManager(ServiceManagerBackend):
     def _wait_for_service_status(
         self,
         predicate: Callable[[ServiceStatus], bool],
-        timeout_seconds: int = 10,
-        poll_interval_ms: int = 300
+        timeout_seconds: int = DEFAULT_STATUS_WAIT_TIMEOUT_SECONDS,
+        poll_interval_ms: int = DEFAULT_POLL_INTERVAL_MS
     ) -> bool:
         self.logger.info('Waiting for service %s status to change (timeout: %ss)', self.service_name, timeout_seconds)
         start_time = time.time()
