@@ -71,6 +71,8 @@ class ServiceManager:
         if executable_path.is_absolute():
             if not executable_path.exists():
                 raise FileNotFoundError(f'Executable does not exist: {executable_path}')
+            if executable_path.is_dir():
+                raise FileNotFoundError(f'Executable is a directory, a file was expected. Given path: {executable_path}')
         else:
             resolved = shutil.which(executable)
             if resolved is None and not executable_path.exists():

@@ -35,6 +35,8 @@ def get_test_service_path() -> Path:
     
     if platform.system() == "Windows":
         exe_path = dist_dir / "test_service.exe"
+    elif platform.system() == "Linux":
+        exe_path = dist_dir / "test_service" / "test_service"
     else:
         exe_path = dist_dir / "test_service"
     
