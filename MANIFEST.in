@@ -1,0 +1,21 @@
+# Include stub files for type hints
+recursive-include etiket_service_manager *.pyi
+
+# Include type marker
+include etiket_service_manager/py.typed
+
+# Include documentation
+include README.md
+include LICENCE
+
+# Exclude compiled files from source distribution
+global-exclude *.so
+global-exclude *.c
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude .DS_Store
+
+# Exclude test files from distribution
+prune tests
+prune .github
+prune .git

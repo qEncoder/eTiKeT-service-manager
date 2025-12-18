@@ -1,12 +1,14 @@
 [build-system]
-requires = ["setuptools>=61.0.0"]
+requires = ["setuptools>=61.0.0", "cython>=3.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "etiket_service_manager"
 description = "Cross-platform service management library for Linux, macOS, and Windows"
+readme = "README.md"
 authors = [{name = "QHarbor team"}]
-license = {file = "LICENCE"}
+license = "LicenseRef-Proprietary"
+license-files = ["LICENCE"]
 requires-python = ">=3.10"
 dynamic = ["version"]
 keywords = [
@@ -20,7 +22,6 @@ keywords = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: Other/Proprietary License",
     "Operating System :: OS Independent",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS :: MacOS X",
@@ -58,5 +59,9 @@ Documentation = "https://docs.qharbor.nl"
 where = ["."]
 include = ["etiket_service_manager*"]
 
+[tool.setuptools.package-data]
+"etiket_service_manager" = ["py.typed", "*.pyi", "**/*.pyi"]
+
 [tool.setuptools.dynamic]
 version = {attr = "etiket_service_manager.__version__"}
+
